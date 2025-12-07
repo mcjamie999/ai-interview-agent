@@ -1,0 +1,424 @@
+"""
+Pure Python MeTTa-style Knowledge Graph Simulation
+
+This module provides a lightweight, pure Python implementation of MeTTa-style
+symbolic reasoning that works in restricted environments like Agentverse.
+
+Design Philosophy:
+- Simple atom representation: (predicate arg1 arg2 ...)
+- Pattern matching queries with variable binding
+- Clean, hackathon-friendly API
+- No binary dependencies - 100% Python
+"""
+
+from typing import List, Dict, Tuple, Optional, Any, Set
+from dataclasses import dataclass
+from collections import defaultdict
+
+
+@dataclass(frozen=True)
+class Atom:
+    """
+    Represents a MeTTa-style atom: (predicate arg1 arg2 ...)
+    Immutable for safe pattern matching.
+    """
+    predicate: str
+    args: Tuple[str, ...]
+    
+    def __repr__(self) -> str:
+        args_str = " ".join(self.args)
+        return f"({self.predicate} {args_str})"
+    
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Atom):
+            return False
+        return self.predicate == other.predicate and self.args == other.args
+    
+    def __hash__(self) -> int:
+        return hash((self.predicate, self.args))
+
+
+class KnowledgeGraph:
+    """
+    Pure Python knowledge graph that simulates MeTTa-style facts and pattern matching.
+    
+    Stores atoms and supports queries with variable binding.
+    """
+    
+    def __init__(self):
+        # Store all atoms
+        self._atoms: Set[Atom] = set()
+        
+        # Index by predicate for faster lookups
+        self._predicate_index: Dict[str, Set[Atom]] = defaultdict(set)
+    
+    def add_atom(self, predicate: str, *args: str) -> None:
+        """
+        Add an atom to the knowledge graph.
+        
+        Example:
+            kg.add_atom("focus_skill", "HR", "communication")
+            # Creates atom: (focus_skill HR communication)
+        """
+        atom = Atom(predicate, args)
+        self._atoms.add(atom)
+        self._predicate_index[predicate].add(atom)
+    
+    def match(self, predicate: str, *pattern: str) -> List[Dict[str, str]]:
+        """
+        Pattern match against atoms.
+        
+        Use "_" as a wildcard to match any value.
+        Use variable names (e.g., "$skill", "$persona") to bind values.
+        
+        Returns list of bindings (dicts mapping variable names to values).
+        
+        Example:
+            kg.add_atom("focus_skill", "HR", "communication")
+            results = kg.match("focus_skill", "HR", "$skill")
+            # Returns: [{"$skill": "communication"}]
+        """
+        results = []
+        
+        # Get all atoms with matching predicate
+        candidate_atoms = self._predicate_index.get(predicate, set())
+        
+        for atom in candidate_atoms:
+            if len(atom.args) != len(pattern):
+                continue
+            
+            bindings = {}
+            match = True
+            
+            for atom_arg, pattern_arg in zip(atom.args, pattern):
+                if pattern_arg == "_":
+                    # Wildcard - matches anything
+                    continue
+                elif pattern_arg.startswith("$"):
+                    # Variable - bind it
+                    var_name = pattern_arg
+                    if var_name in bindings:
+                        # Variable already bound - check consistency
+                        if bindings[var_name] != atom_arg:
+                            match = False
+                            break
+                    else:
+                        bindings[var_name] = atom_arg
+                else:
+                    # Literal - must match exactly
+                    if atom_arg != pattern_arg:
+                        match = False
+                        break
+            
+            if match:
+                results.append(bindings)
+        
+        return results
+    
+    def query(self, predicate: str, *pattern: str) -> List[Tuple[str, ...]]:
+        """
+        Simplified query that returns matched argument tuples.
+        
+        Example:
+            kg.add_atom("focus_skill", "HR", "communication")
+            results = kg.query("focus_skill", "HR", "$skill")
+            # Returns: [("communication",)]
+        """
+        bindings_list = self.match(predicate, *pattern)
+        
+        # Extract values in order of variables in pattern
+        variables = [p for p in pattern if p.startswith("$")]
+        results = []
+        
+        for bindings in bindings_list:
+            values = tuple(bindings.get(var, "") for var in variables)
+            results.append(values)
+        
+        return results
+    
+    def get_all_atoms(self) -> List[Atom]:
+        """Get all atoms in the knowledge graph (for debugging)."""
+        return list(self._atoms)
+    
+    def clear(self):
+        """Clear all atoms (useful for testing)."""
+        self._atoms.clear()
+        self._predicate_index.clear()
+
+
+# ============================================================
+# Interview Domain Knowledge Graph Builder
+# ============================================================
+
+def build_interview_kg() -> KnowledgeGraph:
+    """
+    Build the interview knowledge graph with domain facts.
+    This replaces the Hyperon-based build_interview_kg() function.
+    """
+    kg = KnowledgeGraph()
+    
+    # ============================================================
+    # 1. Persona → Focus Skills
+    # (focus_skill Persona Skill)
+    # ============================================================
+    kg.add_atom("focus_skill", "HR", "communication")
+    kg.add_atom("focus_skill", "HR", "teamwork")
+    kg.add_atom("focus_skill", "HR", "culture_fit")
+    kg.add_atom("focus_skill", "HR", "professionalism")
+    
+    kg.add_atom("focus_skill", "Junior Developer", "problem_solving")
+    kg.add_atom("focus_skill", "Junior Developer", "learning")
+    kg.add_atom("focus_skill", "Junior Developer", "collaboration")
+    kg.add_atom("focus_skill", "Junior Developer", "basic_technical")
+    
+    kg.add_atom("focus_skill", "Senior Developer", "system_design")
+    kg.add_atom("focus_skill", "Senior Developer", "mentoring")
+    kg.add_atom("focus_skill", "Senior Developer", "trade_offs")
+    kg.add_atom("focus_skill", "Senior Developer", "code_quality")
+    
+    kg.add_atom("focus_skill", "Corporate Executive", "business_impact")
+    kg.add_atom("focus_skill", "Corporate Executive", "leadership")
+    kg.add_atom("focus_skill", "Corporate Executive", "strategic_thinking")
+    kg.add_atom("focus_skill", "Corporate Executive", "stakeholder_communication")
+    
+    # ============================================================
+    # 2. Question ID → Skills Mapping
+    # (question_skill QID Skill)
+    # ============================================================
+    # Map question IDs to skills they assess
+    kg.add_atom("question_skill", "Q1", "communication")
+    kg.add_atom("question_skill", "Q1", "culture_fit")
+    kg.add_atom("question_skill", "Q2", "teamwork")
+    kg.add_atom("question_skill", "Q2", "conflict_resolution")
+    kg.add_atom("question_skill", "Q3", "problem_solving")
+    kg.add_atom("question_skill", "Q3", "basic_technical")
+    kg.add_atom("question_skill", "Q4", "learning")
+    kg.add_atom("question_skill", "Q4", "collaboration")
+    kg.add_atom("question_skill", "Q5", "system_design")
+    kg.add_atom("question_skill", "Q5", "trade_offs")
+    
+    # ============================================================
+    # 3. Question Follow-up Chain
+    # (followup QID NextQID)
+    # ============================================================
+    # Define natural question progression
+    kg.add_atom("followup", "Q1", "Q2")
+    kg.add_atom("followup", "Q2", "Q3")
+    kg.add_atom("followup", "Q3", "Q4")
+    kg.add_atom("followup", "Q4", "Q5")
+    
+    # Alternative follow-ups based on answer quality
+    kg.add_atom("followup", "Q1", "Q2_weak")  # If Q1 answer was weak
+    kg.add_atom("followup", "Q2", "Q3_strong")  # If Q2 answer was strong
+    
+    # ============================================================
+    # 4. Question Topics → Skills Mapping
+    # (question_topic Topic Skill)
+    # ============================================================
+    kg.add_atom("question_topic", "conflict_resolution", "teamwork")
+    kg.add_atom("question_topic", "conflict_resolution", "communication")
+    kg.add_atom("question_topic", "technical_debugging", "problem_solving")
+    kg.add_atom("question_topic", "technical_debugging", "basic_technical")
+    kg.add_atom("question_topic", "scaling_systems", "system_design")
+    kg.add_atom("question_topic", "scaling_systems", "trade_offs")
+    kg.add_atom("question_topic", "business_decision", "business_impact")
+    kg.add_atom("question_topic", "business_decision", "strategic_thinking")
+    kg.add_atom("question_topic", "mentoring_scenario", "mentoring")
+    kg.add_atom("question_topic", "mentoring_scenario", "leadership")
+    kg.add_atom("question_topic", "learning_new_tech", "learning")
+    kg.add_atom("question_topic", "learning_new_tech", "collaboration")
+    kg.add_atom("question_topic", "code_review", "code_quality")
+    kg.add_atom("question_topic", "code_review", "mentoring")
+    kg.add_atom("question_topic", "culture_fit", "culture_fit")
+    kg.add_atom("question_topic", "culture_fit", "professionalism")
+    
+    # ============================================================
+    # 5. Persona → Topic Priority (weights for routing)
+    # (persona_priority Persona Topic Weight)
+    # ============================================================
+    # HR priorities
+    kg.add_atom("persona_priority", "HR", "conflict_resolution", "0.9")
+    kg.add_atom("persona_priority", "HR", "culture_fit", "0.95")
+    
+    # Junior Developer priorities
+    kg.add_atom("persona_priority", "Junior Developer", "technical_debugging", "0.85")
+    kg.add_atom("persona_priority", "Junior Developer", "learning_new_tech", "0.8")
+    
+    # Senior Developer priorities
+    kg.add_atom("persona_priority", "Senior Developer", "scaling_systems", "0.9")
+    kg.add_atom("persona_priority", "Senior Developer", "code_review", "0.85")
+    kg.add_atom("persona_priority", "Senior Developer", "mentoring_scenario", "0.8")
+    
+    # Corporate Executive priorities
+    kg.add_atom("persona_priority", "Corporate Executive", "business_decision", "0.95")
+    kg.add_atom("persona_priority", "Corporate Executive", "mentoring_scenario", "0.7")
+    
+    # ============================================================
+    # 6. Role Requirements (for Skill Gap Analysis)
+    # (role_requires Role Skill Level)
+    # ============================================================
+    kg.add_atom("role_requires", "Junior Data Analyst", "SQL", "intermediate")
+    kg.add_atom("role_requires", "Junior Data Analyst", "data_cleaning", "basic")
+    kg.add_atom("role_requires", "Junior Data Analyst", "Python", "basic")
+    kg.add_atom("role_requires", "Junior Data Analyst", "Excel", "intermediate")
+    kg.add_atom("role_requires", "Junior Data Analyst", "data_visualization", "basic")
+    kg.add_atom("role_requires", "Junior Data Analyst", "statistical_analysis", "basic")
+    kg.add_atom("role_requires", "Junior Data Analyst", "communication", "intermediate")
+    kg.add_atom("role_requires", "Junior Data Analyst", "problem_solving", "intermediate")
+    
+    # ============================================================
+    # 7. Skill Prerequisites (for gap analysis)
+    # (skill_prerequisite Skill Prerequisite)
+    # ============================================================
+    kg.add_atom("skill_prerequisite", "data_visualization", "data_cleaning")
+    kg.add_atom("skill_prerequisite", "data_visualization", "statistical_analysis")
+    kg.add_atom("skill_prerequisite", "statistical_analysis", "data_cleaning")
+    
+    return kg
+
+
+# ============================================================
+# Query API Functions
+# ============================================================
+
+def get_focus_skills(kg: KnowledgeGraph, persona: str) -> List[str]:
+    """
+    Get all focus skills for a given persona.
+    
+    Example:
+        skills = get_focus_skills(kg, "HR")
+        # Returns: ["communication", "teamwork", "culture_fit", "professionalism"]
+    """
+    results = kg.query("focus_skill", persona, "$skill")
+    return [skill[0] for skill in results]
+
+
+def get_question_skills(kg: KnowledgeGraph, qid: str) -> List[str]:
+    """
+    Get all skills assessed by a question ID.
+    
+    Example:
+        skills = get_question_skills(kg, "Q1")
+        # Returns: ["communication", "culture_fit"]
+    """
+    results = kg.query("question_skill", qid, "$skill")
+    return [skill[0] for skill in results]
+
+
+def get_followup_question(kg: KnowledgeGraph, qid: str) -> Optional[str]:
+    """
+    Get the next question ID in the follow-up chain.
+    
+    Example:
+        next_qid = get_followup_question(kg, "Q1")
+        # Returns: "Q2"
+    """
+    results = kg.query("followup", qid, "$next_qid")
+    if results:
+        return results[0][0]
+    return None
+
+
+def get_topics_for_persona(kg: KnowledgeGraph, persona: str, limit: int = 3) -> List[Tuple[str, float]]:
+    """
+    Get recommended question topics for a persona, ordered by priority.
+    Returns list of (topic, weight) tuples.
+    
+    Example:
+        topics = get_topics_for_persona(kg, "HR", limit=2)
+        # Returns: [("culture_fit", 0.95), ("conflict_resolution", 0.9)]
+    """
+    results = kg.query("persona_priority", persona, "$topic", "$weight")
+    
+    topics_with_weights = []
+    for result in results:
+        if len(result) >= 2:
+            topic = result[0]
+            try:
+                weight = float(result[1])
+                topics_with_weights.append((topic, weight))
+            except ValueError:
+                continue
+    
+    # Sort by weight descending and return top N
+    topics_with_weights.sort(key=lambda x: x[1], reverse=True)
+    return topics_with_weights[:limit]
+
+
+def get_topics_for_skills(kg: KnowledgeGraph, skills: List[str]) -> List[str]:
+    """
+    Given a list of skills, find relevant question topics.
+    
+    Example:
+        topics = get_topics_for_skills(kg, ["communication", "teamwork"])
+        # Returns: ["conflict_resolution", "culture_fit"]
+    """
+    topics = []
+    for skill in skills:
+        results = kg.query("question_topic", "$topic", skill)
+        for result in results:
+            topic = result[0]
+            if topic not in topics:
+                topics.append(topic)
+    return topics
+
+
+def get_role_requirements(kg: KnowledgeGraph, role: str) -> List[Tuple[str, str]]:
+    """
+    Get all required skills for a role with their levels.
+    Returns list of (skill, level) tuples.
+    
+    Example:
+        requirements = get_role_requirements(kg, "Junior Data Analyst")
+        # Returns: [("SQL", "intermediate"), ("data_cleaning", "basic"), ...]
+    """
+    results = kg.query("role_requires", role, "$skill", "$level")
+    return [(r[0], r[1]) for r in results]
+
+
+def get_skill_prerequisites(kg: KnowledgeGraph, skill: str) -> List[str]:
+    """
+    Get prerequisites for a given skill.
+    
+    Example:
+        prereqs = get_skill_prerequisites(kg, "data_visualization")
+        # Returns: ["data_cleaning", "statistical_analysis"]
+    """
+    results = kg.query("skill_prerequisite", skill, "$prereq")
+    return [r[0] for r in results]
+
+
+# ============================================================
+# Advanced Query Functions
+# ============================================================
+
+def get_persona_skills_for_question(kg: KnowledgeGraph, persona: str, qid: str) -> List[str]:
+    """
+    Get skills that are both:
+    1. Focus skills for the persona
+    2. Assessed by the question
+    
+    This helps determine if a question is well-suited for a persona.
+    """
+    persona_skills = set(get_focus_skills(kg, persona))
+    question_skills = set(get_question_skills(kg, qid))
+    return list(persona_skills & question_skills)
+
+
+def suggest_next_question_topic(kg: KnowledgeGraph, persona: str, previous_topics: List[str]) -> Optional[str]:
+    """
+    Suggest the next question topic based on persona priorities,
+    avoiding topics already covered.
+    
+    Returns the highest-priority topic not yet covered.
+    """
+    all_topics = get_topics_for_persona(kg, persona, limit=10)
+    covered = set(previous_topics)
+    
+    for topic, weight in all_topics:
+        if topic not in covered:
+            return topic
+    return None
+
+
+
