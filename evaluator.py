@@ -48,8 +48,6 @@ agent = Agent()  # Hosted on Agentverse
 # ASI Cloud API Configuration
 # TODO: Move API key to environment variable for security
 # import os
-# ASI_API_KEY = os.getenv("ASI_API_KEY", "your-key-here")
-ASI_API_KEY = "sk-FVoN14UREfvuUPIZugEWKiJGuxMROZ18Ahz4MT6L8TE"
 ASI_API_URL = "https://inference.asicloud.cudos.org/v1/chat/completions"
 ASI_MODEL = "asi1-mini"
 
