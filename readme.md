@@ -9,11 +9,6 @@
 
 **📊 For visual flowcharts, see:**
 - `flowchart.md` - Comprehensive flowchart with Mermaid diagram
-- `flowchart.dot` - Graphviz DOT format (for professional diagrams)
-- `flowchart_simplified.md` - Quick reference visual overview
-- `FLOWCHART_README.md` - Instructions for viewing/generating flowcharts
-
----
 
 ## Overview
 
