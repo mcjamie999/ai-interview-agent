@@ -6,8 +6,6 @@
 3. [Core Components](#core-components)
 4. [Interview Flow](#interview-flow)
 5. [Knowledge Graph System](#knowledge-graph-system)
-6. [Output and Evaluation](#output-and-evaluation)
-7. [API Integration](#api-integration)
 8. [File Structure](#file-structure)
 
 **📊 For visual flowcharts, see:**
