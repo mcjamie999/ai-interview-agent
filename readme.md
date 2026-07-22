@@ -6,7 +6,6 @@
 3. [Core Components](#core-components)
 4. [Interview Flow](#interview-flow)
 5. [Knowledge Graph System](#knowledge-graph-system)
-8. [File Structure](#file-structure)
 
 **📊 For visual flowcharts, see:**
 - `flowchart.md` - Comprehensive flowchart with Mermaid diagram
